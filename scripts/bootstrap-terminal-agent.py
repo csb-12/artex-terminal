@@ -54,6 +54,7 @@ REQUIRED_FILES = [
     "config/mcp-server.artex.json",
     "config/mcp-server.host.json",
     "config/docker-compose.terminal.yml",
+    "config/docker-compose.cdrive.yml",
     "config/docker-compose.override.example.yml",
     "scripts/launch-http.vbs",
     "mcp/pos-delivery/server.py",

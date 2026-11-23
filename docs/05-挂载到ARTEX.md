@@ -32,6 +32,16 @@ docker compose -f D:\ARTEX渗透\ARTEX\docker-compose.yml -f D:\二开artex\conf
 
 Windows Docker Desktop 已提供 `host.docker.internal`。Linux 引擎需要 `extra_hosts`。本机部署会执行上述 compose（只追加七个 pos-* 目录，不整卷覆盖 `/app/skills`）。
 
+本机 Docker Desktop 的 D: virtiofs 若损坏（`mkdir /run/desktop/mnt/host/d: file exists` / `I/O error`），不要叠原 `docker-compose.yml`（里面有 D: 绑定）。改用 C: 联接绕过：
+
+```text
+cmd /c mklink /J C:\Users\蒋蒋\artex-bind D:\ARTEX渗透\ARTEX
+cmd /c mklink /J C:\Users\蒋蒋\erka-bind D:\二开artex
+docker compose -p artex --env-file D:\ARTEX渗透\ARTEX\.env -f D:\二开artex\config\docker-compose.cdrive.yml up -d
+```
+
+不要把 `docker-compose.cdrive.yml` 复制成 ARTEX 目录下的 override。这份是完整 postgres+artex，项目名必须是 `artex` 才能沿用已有数据库卷。不挂滴滴/字节 D: 工作区。
+
 ## 3. 不改 compose 时：复制 Skill
 
 把 `D:\二开artex\skills\pos-*` 七个文件夹复制进 `D:\ARTEX渗透\ARTEX\skills\`。改 Skill 后容器立刻读到（bind mount）。

@@ -27,6 +27,7 @@ D:\二开artex
 │   ├── mcp-server.host.json        宿主机：127.0.0.1:9911
 │   ├── intercept-rules.json
 │   ├── docker-compose.terminal.yml 逐目录挂 pos-*（不要整卷 overlay）
+│   ├── docker-compose.cdrive.yml   Windows D: virtiofs 坏了时走 C: 联接
 │   └── artex-auth.example.json     复制为 .artex-auth.json（已 gitignore）
 ├── docs/
 │   ├── 01-授权设备渗透路线图.md
@@ -55,6 +56,8 @@ D:\二开artex
    ```text
    docker compose -f D:\ARTEX渗透\ARTEX\docker-compose.yml -f D:\二开artex\config\docker-compose.terminal.yml up -d
    ```
+
+   Windows Docker Desktop 的 D: 挂载若报 `mkdir /run/desktop/mnt/host/d: file exists`，改用 `config/docker-compose.cdrive.yml`（C: NTFS 联接，说明见 `docs/05-挂载到ARTEX.md`）。
 
 3. 种专用 Agent（密码放 `config/.artex-auth.json`）：
 
