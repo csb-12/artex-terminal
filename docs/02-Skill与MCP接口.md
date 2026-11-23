@@ -35,7 +35,7 @@ Agent 对 POS 任务应先 `Skill` 工具加载 `pos-pentest`。
 | 宿主机监听 | `http://127.0.0.1:9911` |
 | Docker 里的 ARTEX | `http://host.docker.internal:9911` |
 | 协议 | MCP Streamable HTTP `2025-06-18` |
-| 进程 | `pythonw.exe ...\server.py --http 127.0.0.1:9911` |
+| 进程 | `pythonw.exe ...\run_http_9911.py`（`0.0.0.0:9911`） |
 | 健康检查 | `GET /health` |
 
 USB 设备挂在 Windows 宿主机，MCP 必须跑在宿主机。容器里起 stdio MCP 看不到 POS。

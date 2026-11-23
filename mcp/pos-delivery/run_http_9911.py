@@ -19,7 +19,9 @@ if __name__ == "__main__":
         from server import serve_http
 
         _log("imported serve_http")
-        serve_http("127.0.0.1:9911")
+        # 0.0.0.0：Docker host.docker.internal 才能打到宿主机。
+        # 本机健康检查仍用 http://127.0.0.1:9911/health。
+        serve_http("0.0.0.0:9911")
     except Exception:
         _log(traceback.format_exc())
         raise

@@ -47,10 +47,10 @@ D:\二开artex
 1. MCP（无黑窗）：
 
    ```text
-   pythonw.exe D:\二开artex\mcp\pos-delivery\server.py --http 127.0.0.1:9911
+   pythonw.exe D:\二开artex\mcp\pos-delivery\run_http_9911.py
    ```
 
-   `GET http://127.0.0.1:9911/health` 应返回 `ok`。
+   监听 `0.0.0.0:9911`（Docker `host.docker.internal` 才能连上）。`GET http://127.0.0.1:9911/health` 应返回 `ok`。
 
 2. Skill 挂进容器：
 

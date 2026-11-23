@@ -44,6 +44,33 @@ POS_SKILLS = [
     "pos-android-lpe",
     "pos-takeover",
 ]
+DEFAULT_INTERCEPT_TOOLS = [
+    "Bash",
+    "WebFetch",
+    "web_search",
+    "shell_open",
+    "shell_send",
+    "Write",
+    "Edit",
+    "MultiEdit",
+]
+POS_WRITE_TOOLS = [
+    "fastboot_flashing_unlock",
+    "fastboot_oem_unlock",
+    "fastboot_flash",
+    "fastboot_erase",
+    "fastboot_boot_image",
+    "mtk_seccfg_unlock",
+    "mtk_partition_write",
+    "mtk_partition_erase",
+    "sbi_overlay",
+    "xdl_upload",
+    "magisk_patch_boot",
+    "payload_deliver",
+]
+POS_INTERCEPT_TOOLS = [f"mcp__pos-delivery__{n}" for n in POS_WRITE_TOOLS] + [
+    "mcp__pos-delivery__adb_shell",
+]
 REQUIRED_FILES = [
     "agent/terminal.md",
     "agent/terminal-wrapup.md",
@@ -528,6 +555,20 @@ def seed(args: argparse.Namespace) -> int:
         else:
             api.post("/api/intercept/rules", body)
             log(f"已创建拦截 {rule['name']}")
+
+    try:
+        cfg = api.get("/api/intercept/tool-config")
+        enabled = list(cfg.get("enabled_tools") or [])
+        if not enabled:
+            enabled = list(DEFAULT_INTERCEPT_TOOLS)
+        new_en = union_keep(enabled, POS_INTERCEPT_TOOLS)
+        if new_en != enabled:
+            api.put("/api/intercept/tool-config", {"enabled_tools": new_en})
+            log("已合并拦截工具名单（默认工具 + POS 写入）")
+        else:
+            log("拦截工具名单已含 POS 写入工具")
+    except Exception as e:
+        log(f"拦截工具名单更新失败（规则仍在）: {e}")
 
     for ag_key in add_agents:
         if args.specialize_pentest and ag_key == "pentest":

@@ -7,7 +7,7 @@ POS 全链路渗透的执行层。Agent 通过 MCP 调 adb / fastboot / mtkclien
 HTTP 模式（给 Docker 里的 ARTEX 用，推荐）：
 
 ```
-pythonw.exe D:\二开artex\mcp\pos-delivery\server.py --http 127.0.0.1:9911
+pythonw.exe D:\二开artex\mcp\pos-delivery\run_http_9911.py
 ```
 
 ARTEX 系统设置 → MCP：

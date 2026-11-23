@@ -21,7 +21,7 @@
 1. 启动 MCP（无黑窗）：
 
    ```text
-   pythonw.exe D:\二开artex\mcp\pos-delivery\server.py --http 127.0.0.1:9911
+   pythonw.exe D:\二开artex\mcp\pos-delivery\run_http_9911.py
    ```
 
    或双击 `scripts\launch-http.vbs`。`GET http://127.0.0.1:9911/health` 应返回 ok。

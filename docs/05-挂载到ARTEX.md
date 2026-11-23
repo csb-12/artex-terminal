@@ -9,10 +9,10 @@ ARTEX 安装树默认：`D:\ARTEX渗透\ARTEX`。Skill 加载顺序：`ARTEX_SKI
 ## 1. 启动 pos-delivery（宿主机，无黑窗）
 
 ```text
-pythonw.exe D:\二开artex\mcp\pos-delivery\server.py --http 127.0.0.1:9911
+pythonw.exe D:\二开artex\mcp\pos-delivery\run_http_9911.py
 ```
 
-或双击/静默：`scripts\launch-http.vbs`。
+或双击/静默：`scripts\launch-http.vbs`。包装脚本绑 `0.0.0.0:9911`，让容器里的 `http://host.docker.internal:9911` 能打到宿主机。
 
 检查：浏览器或 curl `http://127.0.0.1:9911/health` 应返回 `{"ok":true,"server":"pos-delivery"}`。
 
