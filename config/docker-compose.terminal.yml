@@ -1,0 +1,21 @@
+# 终端渗透 profile：叠在 ARTEX 自带 compose 上，只追加七个 pos-* Skill 挂载。
+# 不要把整个 D:/二开artex/skills 盖到 /app/skills，否则会盖掉 api-recon / bytesrc。
+#
+# 在 ARTEX 目录执行（不改它的 docker-compose.yml）：
+#   docker compose -f D:\ARTEX渗透\ARTEX\docker-compose.yml -f D:\二开artex\config\docker-compose.terminal.yml up -d
+#
+# 若已经把 override.example 复制成 ARTEX/docker-compose.override.yml，不要再叠这一份（挂载会重复，功能一样）。
+# extra_hosts 给 Linux 引擎解析 host.docker.internal；Windows Docker Desktop 自带该名。
+
+services:
+  artex:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - D:/二开artex/skills/pos-pentest:/app/skills/pos-pentest:ro
+      - D:/二开artex/skills/pos-usb-entry:/app/skills/pos-usb-entry:ro
+      - D:/二开artex/skills/pos-pax-fastboot:/app/skills/pos-pax-fastboot:ro
+      - D:/二开artex/skills/pos-verifone-sbi:/app/skills/pos-verifone-sbi:ro
+      - D:/二开artex/skills/pos-mtk-brom:/app/skills/pos-mtk-brom:ro
+      - D:/二开artex/skills/pos-android-lpe:/app/skills/pos-android-lpe:ro
+      - D:/二开artex/skills/pos-takeover:/app/skills/pos-takeover:ro

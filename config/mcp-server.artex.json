@@ -1,0 +1,10 @@
+{
+  "name": "pos-delivery",
+  "transport": "http",
+  "url": "http://host.docker.internal:9911",
+  "enabled": true,
+  "insecure": true,
+  "command": "",
+  "args": [],
+  "env": {}
+}

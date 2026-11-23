@@ -1,0 +1,5 @@
+{
+  "url": "http://127.0.0.1:8787",
+  "username": "ARTEX",
+  "password": "在此填写 ARTEX 登录密码，另存为 config/.artex-auth.json"
+}

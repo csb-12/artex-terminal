@@ -1,0 +1,16 @@
+[
+  {
+    "cve": "CVE-2019-14715",
+    "title": "Verifone SBI bootloader RS232 XDL 未签名内存写入",
+    "models": ["VX520", "VX680", "VX690", "VX820", "MX900", "MX915", "MX925", "e355"],
+    "entry": "物理按键组合 → RS232 XDL",
+    "impact": "覆盖 SBI 运行时代码，在内核模式将 H.OUT 标记为已认证，持久化自定义可执行文件",
+    "skill": "pos-verifone-sbi",
+    "probe_tools": ["uart_list_ports", "uart_probe"],
+    "write_tools": ["xdl_upload", "sbi_overlay", "payload_deliver"],
+    "notes": [
+      "先确认设备是否暴露 SBI 下载入口",
+      "上传 payload 覆盖 SBI 必须 proposed"
+    ]
+  }
+]

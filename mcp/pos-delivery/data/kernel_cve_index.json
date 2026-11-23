@@ -1,0 +1,72 @@
+[
+  {
+    "cve": "CVE-2024-53104",
+    "title": "UVC 驱动越界写",
+    "component": "drivers/media/usb/uvc",
+    "android_patch": "2025-01-01",
+    "platforms": ["qcom", "mtk", "unisoc", "unknown"],
+    "needs_uvc": true,
+    "kernel_hints": ["uvcvideo"],
+    "from_shell": true,
+    "impact": "本地内核任意写 → 提权到 root/内核",
+    "verify": ["ls /dev/video*", "lsmod | grep uvc", "dmesg | grep uvc"],
+    "mcp_deliver": "payload_deliver",
+    "priority_hint": 1
+  },
+  {
+    "cve": "CVE-2024-31317",
+    "title": "Zygote hidden API / specifyIds 注入",
+    "component": "frameworks/base zygote",
+    "android_patch": "2024-06-01",
+    "platforms": ["qcom", "mtk", "unisoc", "unknown"],
+    "needs_uvc": false,
+    "kernel_hints": [],
+    "from_shell": true,
+    "impact": "普通应用/shell 向 zygote 注入 → system_server 代码执行",
+    "verify": ["getprop ro.build.version.release", "getprop ro.build.version.sdk"],
+    "mcp_deliver": "payload_deliver",
+    "priority_hint": 1
+  },
+  {
+    "cve": "CVE-2024-23380",
+    "title": "GPU 内存破坏",
+    "component": "vendor GPU",
+    "android_patch": "2024-08-01",
+    "platforms": ["qcom"],
+    "needs_uvc": false,
+    "kernel_hints": ["kgsl", "adreno", "msm"],
+    "from_shell": true,
+    "impact": "GPU 设备节点内存破坏 → 内核代码执行",
+    "verify": ["ls /dev/kgsl-3d0", "getprop ro.hardware.egl"],
+    "mcp_deliver": "payload_deliver",
+    "priority_hint": 2
+  },
+  {
+    "cve": "CVE-2023-6241",
+    "title": "ARM Mali GPU 内核提权",
+    "component": "mali",
+    "android_patch": "2024-01-01",
+    "platforms": ["mtk", "unknown"],
+    "needs_uvc": false,
+    "kernel_hints": ["mali", "midgard", "bifrost", "valhall"],
+    "from_shell": true,
+    "impact": "Mali 驱动 LPE",
+    "verify": ["ls /dev/mali*", "dmesg | grep mali"],
+    "mcp_deliver": "payload_deliver",
+    "priority_hint": 2
+  },
+  {
+    "cve": "CVE-2022-20409",
+    "title": "Android Binder use-after-free",
+    "component": "binder",
+    "android_patch": "2022-11-01",
+    "platforms": ["qcom", "mtk", "unisoc", "unknown"],
+    "needs_uvc": false,
+    "kernel_hints": ["binder"],
+    "from_shell": true,
+    "impact": "binder UAF → 内核提权",
+    "verify": ["uname -a", "ls /dev/binder"],
+    "mcp_deliver": "payload_deliver",
+    "priority_hint": 3
+  }
+]

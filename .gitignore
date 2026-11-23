@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+*.pyc
+*.log
+mcp/pos-delivery/.env
+mcp/pos-delivery/*.log
+config/.artex-auth.json
+*.key
+jwt.key
+.DS_Store
+Thumbs.db

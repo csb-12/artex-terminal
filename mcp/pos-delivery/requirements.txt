@@ -1,0 +1,2 @@
+# 标准库即可跑 MCP。串口 banner 读取需要：
+pyserial>=3.5

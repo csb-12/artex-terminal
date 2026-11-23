@@ -1,0 +1,14 @@
+{
+  "mtk_brom": [{"vid": "0e8d", "pid": "0003", "note": "MediaTek BROM"}],
+  "mtk_preloader": [
+    {"vid": "0e8d", "pid": "2000", "note": "Preloader"},
+    {"vid": "0e8d", "pid": "20ff", "note": "Preloader variant"}
+  ],
+  "qcom_edl": [{"vid": "05c6", "pid": "9008", "note": "Qualcomm HS-USB QDLoader 9008"}],
+  "qcom_diag": [{"vid": "05c6", "pid": "9006", "note": "Qualcomm 9006"}],
+  "adb": [
+    {"vid": "18d1", "pid": "4ee7", "note": "Google ADB"},
+    {"vid": "18d1", "pid": "d00d", "note": "fastboot"},
+    {"vid": "22d9", "pid": "2769", "note": "Sunmi 常见复合 USB"}
+  ]
+}

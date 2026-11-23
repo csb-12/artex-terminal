@@ -1,0 +1,14 @@
+# 复制到 D:\ARTEX渗透\ARTEX\docker-compose.override.yml
+# 与仓库自带 docker-compose.yml 合并：只追加 POS Skill 挂载，不替换 api-recon 等。
+services:
+  artex:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - D:/二开artex/skills/pos-pentest:/app/skills/pos-pentest:ro
+      - D:/二开artex/skills/pos-usb-entry:/app/skills/pos-usb-entry:ro
+      - D:/二开artex/skills/pos-pax-fastboot:/app/skills/pos-pax-fastboot:ro
+      - D:/二开artex/skills/pos-verifone-sbi:/app/skills/pos-verifone-sbi:ro
+      - D:/二开artex/skills/pos-mtk-brom:/app/skills/pos-mtk-brom:ro
+      - D:/二开artex/skills/pos-android-lpe:/app/skills/pos-android-lpe:ro
+      - D:/二开artex/skills/pos-takeover:/app/skills/pos-takeover:ro

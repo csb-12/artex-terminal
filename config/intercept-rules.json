@@ -1,0 +1,44 @@
+{
+  "_comment": "在 ARTEX 拦截规则里新增。只拦不可逆写入；枚举/CVE 匹配/只读 dump 不配规则。",
+  "rules": [
+    {
+      "name": "[POS] MCP 不可逆写入需审批",
+      "enabled": true,
+      "priority": 95,
+      "match_target": "tool_name",
+      "match_type": "regex",
+      "pattern": "^mcp__pos-delivery__(fastboot_flashing_unlock|fastboot_oem_unlock|fastboot_flash|fastboot_erase|fastboot_boot_image|mtk_seccfg_unlock|mtk_partition_write|mtk_partition_erase|sbi_overlay|xdl_upload|magisk_patch_boot|payload_deliver)$",
+      "action": "ask",
+      "message": "POS 解锁/擦写分区/SBI 覆盖/payload 投递不可逆，需人工确认。",
+      "timeout_enabled": true,
+      "timeout_seconds": 300,
+      "timeout_action": "deny"
+    },
+    {
+      "name": "[POS] 禁止绕过 MCP 用 Bash 刷写设备",
+      "enabled": true,
+      "priority": 94,
+      "match_target": "tool_input",
+      "match_type": "regex",
+      "pattern": "(?i)(fastboot\\s+(flash|erase|boot|flashing\\s+unlock|oem\\s+unlock)|\\bmtk\\b[^\\n]{0,80}\\b(seccfg|\\bw\\b|\\be\\b)|mtkclient[^\\n]{0,80}(seccfg|\\sw\\s|\\se\\s))",
+      "action": "ask",
+      "message": "设备刷写必须走 mcp__pos-delivery__ 的 proposed 门，不要用 Bash 直接 fastboot/mtkclient 写。",
+      "timeout_enabled": true,
+      "timeout_seconds": 300,
+      "timeout_action": "deny"
+    },
+    {
+      "name": "[POS] 禁止 adb_shell 刷分区或 reboot",
+      "enabled": true,
+      "priority": 93,
+      "match_target": "tool_input",
+      "match_type": "regex",
+      "pattern": "(?i)(\\bdd\\b[^\\n]{0,80}\\bof=|of=/dev/block|flash_image|(?:^|\\s)reboot(?:\\s|$))",
+      "action": "ask",
+      "message": "分区写入走 mcp__pos-delivery__ 的 proposed 门；重启走 adb_reboot，不要用 adb_shell / Bash 直写。",
+      "timeout_enabled": true,
+      "timeout_seconds": 300,
+      "timeout_action": "deny"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+[
+  {
+    "cve": "CVE-2023-42134",
+    "title": "PAX PayDroid fastboot 隐藏命令：未签名分区覆盖 + 内核参数注入",
+    "models": ["A920Pro", "A920", "A50", "A77", "A80", "PayDroid"],
+    "os_hints": ["PayDroid", "pax"],
+    "entry": "USB fastboot",
+    "impact": "fastboot 模式下任意代码执行，直接拿到 root 级内核控制",
+    "skill": "pos-pax-fastboot",
+    "probe_tools": ["fastboot_devices", "fastboot_getvar", "fastboot_oem_help"],
+    "write_tools": ["fastboot_flash", "fastboot_boot_image", "payload_deliver"],
+    "notes": [
+      "先读 build / PayDroid 版本，判断是否在公开影响范围内",
+      "隐藏命令探测是只读，分区覆盖必须 proposed"
+    ]
+  }
+]

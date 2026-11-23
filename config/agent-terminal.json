@@ -1,0 +1,24 @@
+{
+  "key": "terminal",
+  "name": "终端渗透",
+  "description": "专门针对授权 POS/收银/刷卡终端的渗透 Agent。USB 入口到内核 ACE 或设备接管，按指纹选链，禁止一键 root。",
+  "prompt_file": "agent/terminal.md",
+  "wrapup_file": "agent/terminal-wrapup.md",
+  "addendum_file": "agent/orchestration-addendum.md",
+  "skills": [
+    "pos-pentest",
+    "pos-usb-entry",
+    "pos-pax-fastboot",
+    "pos-verifone-sbi",
+    "pos-mtk-brom",
+    "pos-android-lpe",
+    "pos-takeover"
+  ],
+  "mcp_name": "pos-delivery",
+  "wire_agents": ["terminal", "pentest", "planner", "worker", "mainagent", "goals"],
+  "addendum_agents": ["pentest", "planner", "worker", "mainagent", "goals"],
+  "max_turns": 0,
+  "run_seconds": 3600,
+  "web_search": true,
+  "interactive_shell": false
+}
