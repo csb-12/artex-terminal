@@ -27,7 +27,8 @@ D:\二开artex
 │   ├── mcp-server.host.json        宿主机：127.0.0.1:9911
 │   ├── intercept-rules.json
 │   ├── docker-compose.terminal.yml 逐目录挂 pos-*（不要整卷 overlay）
-│   ├── docker-compose.cdrive.yml   Windows D: virtiofs 坏了时走 C: 联接
+│   ├── docker-compose.cdrive.yml   Windows D: virtiofs 坏了时走 C: 联接（本机实测会解析回 D:）
+│   ├── docker-compose.namedvol.yml 本机：named volume + docker cp（绕开损坏的 D: virtiofs）
 │   └── artex-auth.example.json     复制为 .artex-auth.json（已 gitignore）
 ├── docs/
 │   ├── 01-授权设备渗透路线图.md
@@ -57,7 +58,16 @@ D:\二开artex
    docker compose -f D:\ARTEX渗透\ARTEX\docker-compose.yml -f D:\二开artex\config\docker-compose.terminal.yml up -d
    ```
 
-   Windows Docker Desktop 的 D: 挂载若报 `mkdir /run/desktop/mnt/host/d: file exists`，改用 `config/docker-compose.cdrive.yml`（C: NTFS 联接，说明见 `docs/05-挂载到ARTEX.md`）。
+   Windows Docker Desktop 的 D: 挂载若报 `mkdir /run/desktop/mnt/host/d: file exists`，**不要叠原 compose**（含 D: 绑定）。本机用 named volume + `docker cp`：
+
+   ```text
+   docker compose -p artex --env-file D:\ARTEX渗透\ARTEX\.env -f D:\二开artex\config\docker-compose.namedvol.yml up -d
+   docker cp D:\ARTEX渗透\ARTEX\grok-bridge.py artex-artex-1:/app/grok-bridge.py
+   docker cp D:\ARTEX渗透\ARTEX\skills/. artex-artex-1:/app/skills/
+   docker cp D:\二开artex\skills/. artex-artex-1:/app/skills/
+   ```
+
+   `config/docker-compose.cdrive.yml`（C: NTFS 联接）在这台 Docker Desktop 上会解析回 D:，走不通。细节见 `docs/05-挂载到ARTEX.md`。
 
 3. 种专用 Agent（密码放 `config/.artex-auth.json`）：
 

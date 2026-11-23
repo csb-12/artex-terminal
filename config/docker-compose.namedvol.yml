@@ -1,0 +1,64 @@
+# Windows Docker Desktop D: virtiofs 损坏、且 NTFS 联接会被解析回 D: 时用。
+# 数据/Skill 走 named volume，宿主机文件用 docker cp 灌进去（不经过 virtiofs D:）。
+#
+#   docker compose -p artex --env-file D:\ARTEX渗透\ARTEX\.env -f D:\二开artex\config\docker-compose.namedvol.yml up -d
+#   docker cp "D:\ARTEX渗透\ARTEX\grok-bridge.py" artex-artex-1:/app/grok-bridge.py
+#   docker cp "D:\ARTEX渗透\ARTEX\skills/." artex-artex-1:/app/skills/
+#   docker cp "D:\二开artex\skills/." artex-artex-1:/app/skills/
+#
+# 不要叠原 docker-compose.yml（含 D: 绑定）。不要整卷 overlay 覆盖镜像 skills 以外的方式：
+# 这里 /app/skills 本身就是 named volume，必须把 api-recon / bytesrc / pos-* 一并 cp 进去。
+# 本 workaround 不挂滴滴/字节 D: 工作区。历史 data/tasks 不自动灌入（体积大）。
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-artex}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 设置 POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-artex}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-artex} -d ${POSTGRES_DB:-artex}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  artex:
+    image: mianhuatang11/artex:${ARTEX_TAG:-latest}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ARTEX_PG_DSN: postgres://${POSTGRES_USER:-artex}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-artex}?sslmode=disable
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ARTEX_LLM_PROVIDER: ${ARTEX_LLM_PROVIDER:-}
+      ARTEX_LLM_MODEL: ${ARTEX_LLM_MODEL:-}
+      ARTEX_LLM_BASE_URL: ${ARTEX_LLM_BASE_URL:-}
+      ARTEX_LLM_PROXY: ${ARTEX_LLM_PROXY:-}
+      GROK_BRIDGE_HOST: "127.0.0.1"
+      GROK_BRIDGE_PORT: "8790"
+      GROK_AUTH_JSON: /auth.json
+      GROK_BRIDGE_LOG: /app/data/grok-bridge.log
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "8787:8787"
+      - "127.0.0.1:8788:8788"
+    volumes:
+      - artex_app_data:/app/data
+      - artex_app_skills:/app/skills
+      - C:/Users/蒋蒋/.grok/auth.json:/auth.json
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - exec /app/start.sh -addr :8787 -proxy :8788
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  artex_app_data:
+  artex_app_skills:

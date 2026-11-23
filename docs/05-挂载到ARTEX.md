@@ -32,15 +32,20 @@ docker compose -f D:\ARTEX渗透\ARTEX\docker-compose.yml -f D:\二开artex\conf
 
 Windows Docker Desktop 已提供 `host.docker.internal`。Linux 引擎需要 `extra_hosts`。本机部署会执行上述 compose（只追加七个 pos-* 目录，不整卷覆盖 `/app/skills`）。
 
-本机 Docker Desktop 的 D: virtiofs 若损坏（`mkdir /run/desktop/mnt/host/d: file exists` / `I/O error`），不要叠原 `docker-compose.yml`（里面有 D: 绑定）。改用 C: 联接绕过：
+本机 Docker Desktop 的 D: virtiofs 若损坏（`mkdir /run/desktop/mnt/host/d: file exists` / `I/O error`），不要叠原 `docker-compose.yml`（里面有 D: 绑定）。
+
+NTFS 联接（`mklink /J C:\...\artex-bind D:\ARTEX渗透\ARTEX`）在这台 Docker Desktop 上**行不通**：引擎会把联接解析成 D: 真实路径，仍去建 `/run/desktop/mnt/host/d`。`config/docker-compose.cdrive.yml` 留给 virtiofs 能跟着联走的环境。
+
+本机实际用 named volume，宿主机文件用 `docker cp` 灌进容器：
 
 ```text
-cmd /c mklink /J C:\Users\蒋蒋\artex-bind D:\ARTEX渗透\ARTEX
-cmd /c mklink /J C:\Users\蒋蒋\erka-bind D:\二开artex
-docker compose -p artex --env-file D:\ARTEX渗透\ARTEX\.env -f D:\二开artex\config\docker-compose.cdrive.yml up -d
+docker compose -p artex --env-file D:\ARTEX渗透\ARTEX\.env -f D:\二开artex\config\docker-compose.namedvol.yml up -d
+docker cp D:\ARTEX渗透\ARTEX\grok-bridge.py artex-artex-1:/app/grok-bridge.py
+docker cp D:\ARTEX渗透\ARTEX\skills/. artex-artex-1:/app/skills/
+docker cp D:\二开artex\skills/. artex-artex-1:/app/skills/
 ```
 
-不要把 `docker-compose.cdrive.yml` 复制成 ARTEX 目录下的 override。这份是完整 postgres+artex，项目名必须是 `artex` 才能沿用已有数据库卷。不挂滴滴/字节 D: 工作区。
+项目名必须是 `artex` 才能沿用已有 postgres 卷。不挂滴滴/字节 D: 工作区。历史 `data/tasks` 不自动灌入。改 Skill 后重新 `docker cp` 对应目录。
 
 ## 3. 不改 compose 时：复制 Skill
 
