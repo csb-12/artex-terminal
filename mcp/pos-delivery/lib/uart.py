@@ -54,6 +54,12 @@ def probe(port: str, baud: int = 115200, seconds: float = 3.0) -> dict:
     buf = b""
     end = time.time() + seconds
     try:
+        # 很多 POS UART 要先打 CR/LF 才吐 banner / 提示符。
+        try:
+            ser.write(b"\r\n")
+            ser.flush()
+        except Exception:
+            pass
         while time.time() < end:
             chunk = ser.read(4096)
             if chunk:

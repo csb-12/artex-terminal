@@ -1,12 +1,12 @@
 ---
 name: pos-pax-fastboot
-description: PAX PayDroid + USB fastboot 可达时使用。CVE-2023-42134：fastboot 隐藏命令未签名分区覆盖与内核参数注入，目标 A920Pro/A50/A77/A80。验证到内核 ACE。
+description: PAX PayDroid + USB fastboot 可达时使用。CVE-2023-42134：fastboot 隐藏命令未签名分区覆盖与内核参数注入，目标 A920Pro/A50/A77/A80/A35。oem help 有命令不是 ACE。验证到内核 ACE。
 mcps: pos-delivery
 ---
 
 # PAX PayDroid fastboot 链（CVE-2023-42134）
 
-公开问题：PayDroid 在 fastboot 暴露隐藏命令，可覆盖未签名分区并向内核注入参数，从而在 fastboot 阶段拿到任意代码执行。本 Skill 只编排验证，**不内置命令字节、补丁或 boot 镜像**。
+公开问题：PayDroid 在 fastboot 暴露隐藏命令，可覆盖未签名分区并向内核注入参数，从而在 fastboot 阶段拿到任意代码执行。本 Skill 只编排验证，**不内置命令字节、补丁或 boot 镜像**。本节是判定地图：oem help 有命令不是 ACE，先打哪条假设由你根据 getvar/oem_help 回包决定。
 
 逐步操作模板见仓库 `docs/03-PAX-fastboot验证步骤模板.md`。
 
@@ -15,7 +15,7 @@ mcps: pos-delivery
 1. `usb_enum` / `fastboot_devices` 确认 fastboot 在线。系统态则 `adb_getprop` 后 `adb_reboot` → `bootloader`。
 2. `fastboot_getvar`：product / variant / unlocked / secure / version-bootloader。
 3. `fastboot_oem_help`：只读探测 `oem help` / `oem ?` / `help`。把回包里的隐藏子命令原样记录。
-4. `cve_match_paydroid`：型号、`ro.build.display.id`、fingerprint。命中 A920Pro / A920 / A50 / A77 / A80 / PayDroid 才把本 CVE 提到 P1。
+4. `cve_match_paydroid`：型号、`ro.build.display.id`、fingerprint。命中 A920Pro / A920 / A50 / A77 / A80 / A35 / PayDroid 才把本 CVE 提到 P1。隐藏命令列表不是 ACE。
 
 未进 fastboot：回到 `pos-usb-entry`，不要在系统态猜隐藏命令。
 

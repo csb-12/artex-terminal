@@ -1,0 +1,34 @@
+[
+  {
+    "soc": "msm8917",
+    "aliases": ["8917", "msm8917"],
+    "models": ["T6920", "P2_PRO", "P2Pro"],
+    "programmers": [
+      "prog_emmc_firehose_8917.mbn",
+      "prog_emmc_firehose_8917_ddr.mbn"
+    ],
+    "usb": "05c6:9008",
+    "note": "商米 P2 Pro T6920 主路。MCP 不提供程序员文件，只提示文件名。"
+  },
+  {
+    "soc": "msm8909",
+    "aliases": ["8909"],
+    "models": [],
+    "programmers": [
+      "prog_emmc_firehose_8909.mbn",
+      "prog_emmc_firehose_8909_ddr.mbn"
+    ],
+    "usb": "05c6:9008",
+    "note": "同代高通入门核，POS 偶见。"
+  },
+  {
+    "soc": "msm8953",
+    "aliases": ["8953"],
+    "models": [],
+    "programmers": [
+      "prog_emmc_firehose_8953_ddr.mbn"
+    ],
+    "usb": "05c6:9008",
+    "note": "只提示文件名。"
+  }
+]

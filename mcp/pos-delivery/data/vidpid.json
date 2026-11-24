@@ -5,10 +5,13 @@
     {"vid": "0e8d", "pid": "20ff", "note": "Preloader variant"}
   ],
   "qcom_edl": [{"vid": "05c6", "pid": "9008", "note": "Qualcomm HS-USB QDLoader 9008"}],
-  "qcom_diag": [{"vid": "05c6", "pid": "9006", "note": "Qualcomm 9006"}],
+  "qcom_diag": [{"vid": "05c6", "pid": "9006", "note": "Qualcomm 9006 诊断/大容量复合"}],
   "adb": [
     {"vid": "18d1", "pid": "4ee7", "note": "Google ADB"},
+    {"vid": "18d1", "pid": "4ee2", "note": "Google ADB 复合"},
     {"vid": "18d1", "pid": "d00d", "note": "fastboot"},
     {"vid": "22d9", "pid": "2769", "note": "Sunmi 常见复合 USB"}
-  ]
+  ],
+  "sunmi": [{"vid": "22d9", "pid": "2769", "note": "Sunmi 复合设备"}],
+  "fastboot": [{"vid": "18d1", "pid": "d00d", "note": "Google fastboot"}]
 }

@@ -6,7 +6,7 @@ mcps: pos-delivery
 
 # MTK BROM / DA 链
 
-目标：BROM 阶段拿到 DA，评估分区任意读写、`seccfg` 改锁状态、boot 分区可写。MCP 只包装 **mtkclient CLI**，不内置 Kamakiri 源码或 payload。
+目标：BROM 阶段拿到 DA，评估分区任意读写、`seccfg` 改锁状态、boot 分区可写。MCP 只包装 **mtkclient CLI**，不内置 Kamakiri 源码或 payload。本节是判定地图：detect 失败先换短接/线序再判死，不要空转 printgpt。
 
 ## 攻击面枚举
 

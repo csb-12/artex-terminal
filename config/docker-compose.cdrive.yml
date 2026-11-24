@@ -1,22 +1,23 @@
-# Windows Docker Desktop 的 D: virtiofs 损坏时用（mkdir /run/desktop/mnt/host/d: file exists）。
-# 先在宿主机建 NTFS 目录联接（不需要管理员）：
-#   cmd /c mklink /J C:\Users\蒋蒋\artex-bind D:\ARTEX渗透\ARTEX
-#   cmd /c mklink /J C:\Users\蒋蒋\erka-bind D:\二开artex
-# virtiofs 只挂 C:，联接在 Windows 侧解析，容器看到的是真实文件。
+# Windows Docker Desktop 的 D: virtiofs 损坏、且引擎能跟着 C: NTFS 联接走时用。
+# 先在宿主机建联接（不需要管理员），再写入 .compose.env：
+#   mklink /J %USERPROFILE%\artex-bind <ARTEX安装目录>
+#   mklink /J %USERPROFILE%\erka-bind <本仓库>
+#   ARTEX_BIND=C:/Users/you/artex-bind
+#   ERKA_BIND=C:/Users/you/erka-bind
+#   GROK_AUTH_JSON=C:/Users/you/.grok/auth.json
 #
-# 启动（项目名必须是 artex，沿用已有 postgres 卷；不要叠原 docker-compose.yml，那份含 D: 绑定）：
-#   docker compose -p artex --env-file D:\ARTEX渗透\ARTEX\.env -f D:\二开artex\config\docker-compose.cdrive.yml up -d
+#   docker compose -p artex --env-file "%ARTEX_HOME%/.env" --env-file config/.compose.env -f config/docker-compose.cdrive.yml up -d
 #
+# 部分 Docker Desktop 会把联接解析回 D: 真实路径，那份环境请改用 namedvol.yml。
 # 不要把本文件复制成 ARTEX/docker-compose.override.yml。
-# 不要整卷 overlay /app/skills。pos-* 按目录叠在 skills 之上。
-# 本 workaround 不挂滴滴/字节 D: 工作区。
+# 不要整卷 overlay /app/skills。
 
 services:
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-artex}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 设置 POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 ARTEX .env 设置 POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-artex}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -51,17 +52,18 @@ services:
       - "8787:8787"
       - "127.0.0.1:8788:8788"
     volumes:
-      - ${ARTEX_BIND:-C:/Users/蒋蒋/artex-bind}/data:/app/data
-      - ${ARTEX_BIND:-C:/Users/蒋蒋/artex-bind}/skills:/app/skills
-      - ${ARTEX_BIND:-C:/Users/蒋蒋/artex-bind}/grok-bridge.py:/app/grok-bridge.py:ro
-      - C:/Users/蒋蒋/.grok/auth.json:/auth.json
-      - ${ERKA_BIND:-C:/Users/蒋蒋/erka-bind}/skills/pos-pentest:/app/skills/pos-pentest:ro
-      - ${ERKA_BIND:-C:/Users/蒋蒋/erka-bind}/skills/pos-usb-entry:/app/skills/pos-usb-entry:ro
-      - ${ERKA_BIND:-C:/Users/蒋蒋/erka-bind}/skills/pos-pax-fastboot:/app/skills/pos-pax-fastboot:ro
-      - ${ERKA_BIND:-C:/Users/蒋蒋/erka-bind}/skills/pos-verifone-sbi:/app/skills/pos-verifone-sbi:ro
-      - ${ERKA_BIND:-C:/Users/蒋蒋/erka-bind}/skills/pos-mtk-brom:/app/skills/pos-mtk-brom:ro
-      - ${ERKA_BIND:-C:/Users/蒋蒋/erka-bind}/skills/pos-android-lpe:/app/skills/pos-android-lpe:ro
-      - ${ERKA_BIND:-C:/Users/蒋蒋/erka-bind}/skills/pos-takeover:/app/skills/pos-takeover:ro
+      - ${ARTEX_BIND:?set ARTEX_BIND}/data:/app/data
+      - ${ARTEX_BIND:?set ARTEX_BIND}/skills:/app/skills
+      - ${ARTEX_BIND:?set ARTEX_BIND}/grok-bridge.py:/app/grok-bridge.py:ro
+      - ${GROK_AUTH_JSON:?set GROK_AUTH_JSON}:/auth.json:ro
+      - ${ERKA_BIND:?set ERKA_BIND}/skills/pos-pentest:/app/skills/pos-pentest:ro
+      - ${ERKA_BIND:?set ERKA_BIND}/skills/pos-usb-entry:/app/skills/pos-usb-entry:ro
+      - ${ERKA_BIND:?set ERKA_BIND}/skills/pos-pax-fastboot:/app/skills/pos-pax-fastboot:ro
+      - ${ERKA_BIND:?set ERKA_BIND}/skills/pos-verifone-sbi:/app/skills/pos-verifone-sbi:ro
+      - ${ERKA_BIND:?set ERKA_BIND}/skills/pos-mtk-brom:/app/skills/pos-mtk-brom:ro
+      - ${ERKA_BIND:?set ERKA_BIND}/skills/pos-android-lpe:/app/skills/pos-android-lpe:ro
+      - ${ERKA_BIND:?set ERKA_BIND}/skills/pos-takeover:/app/skills/pos-takeover:ro
+      - ${ERKA_BIND:?set ERKA_BIND}/skills/pos-code-audit:/app/skills/pos-code-audit:ro
     entrypoint: ["/bin/sh", "-c"]
     command:
       - python -u /app/grok-bridge.py >>/app/data/grok-bridge.log 2>&1 & exec /app/start.sh -addr :8787 -proxy :8788

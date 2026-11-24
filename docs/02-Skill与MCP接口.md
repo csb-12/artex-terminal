@@ -1,6 +1,6 @@
 # Skill 目录与 MCP 接口
 
-本包是独立二开，挂进 ARTEX 后由专用 Agent **终端渗透**（`terminal`）用 Skill 选链、用 MCP 动手。工具名在会话里是 `mcp__pos-delivery__<tool>`。种 Agent 见 `docs/06-终端渗透Agent.md`。
+本包是独立二开，挂进 ARTEX 后由专用 Agent **终端渗透**（`terminal`）用 Skill 当领域知识、用 MCP 动手。路线由 Agent 根据回包自己排，分类器只给假设。工具名在会话里是 `mcp__pos-delivery__<tool>`。种 Agent 见 `docs/06-终端渗透Agent.md`。
 
 ## 1. Skill 目录
 
@@ -15,6 +15,7 @@ skills/
   pos-mtk-brom/SKILL.md       BROM + DA + seccfg
   pos-android-lpe/SKILL.md    受限 shell LPE 匹配与投递
   pos-takeover/SKILL.md       Magisk / seccfg / SBI 持久化
+  pos-code-audit/SKILL.md     安卓 APK + OS/ELF 事实地图（不判漏洞）
 ```
 
 每个 SKILL.md：
@@ -24,7 +25,7 @@ skills/
 - 正文四段：**攻击面枚举 → 利用假设生成 → 逐步验证 → 接管判定**
 - 不内置利用代码
 
-Agent 对 POS 任务应先 `Skill` 工具加载 `pos-pentest`。
+Agent 对 POS 任务应先 `Skill` 工具加载 `pos-pentest`，立刻 `usb_enum`，之后按现场证据加载 1–2 条子 Skill。Skill 正文是判定地图，不是打勾清单。
 
 ## 2. MCP 服务器
 
@@ -43,7 +44,7 @@ USB 设备挂在 Windows 宿主机，MCP 必须跑在宿主机。容器里起 st
 stdio 备选（ARTEX 与设备同机、不走 Docker）：
 
 - command: `pythonw.exe`
-- args: `["C:\\Users\\蒋蒋\\.grok\\bin\\mcp-noconsole.py", "D:\\二开artex\\mcp\\pos-delivery\\server.py"]`
+- args: `["<本仓库>/mcp/pos-delivery/server.py"]`
 
 子进程 `CREATE_NO_WINDOW`。禁止 `cmd /k`。
 
@@ -69,19 +70,30 @@ stdio 备选（ARTEX 与设备同机、不走 Docker）：
 | `adb_id_selinux_mounts` | id / getenforce / mounts / by-name |
 | `adb_shell` | 一条侦察命令，禁止 dd 刷分区 |
 | `adb_reboot` | bootloader / edl / recovery / system |
+| `adb_surface` | uname / 包名 / USB 配置 / 驱动节点 / 监听口 |
+| `adb_pull` | 从设备拉文件到本地（只读 dump） |
 | `fastboot_devices` | 列表 |
 | `fastboot_getvar` | unlocked/secure/variant 等 |
 | `fastboot_oem_help` | 隐藏命令面，不刷机 |
 | `uart_list_ports` | COM 列表 |
-| `uart_probe` | banner |
+| `uart_probe` | banner（先打 CR/LF 唤醒） |
 | `fingerprint_classify` | vendor/platform + next_skills + hypotheses |
-| `cve_match_kernel` | security_patch vs 索引 |
+| `cve_match_kernel` | security_patch / uname / UVC·kgsl·mali 节点 vs 索引 |
+| `edl_programmer_hint` | SoC → firehose 文件名（无程序员本体） |
 | `cve_match_paydroid` | CVE-2023-42134 型号 |
 | `cve_match_verifone` | CVE-2019-14715 型号 |
 | `magisk_feasibility` | 7–15 / vbmeta / A/B / hide_stack |
 | `mtk_detect` | mtkclient + BROM |
 | `mtk_da_info` | DA 只读 GPT |
 | `mtk_read` | DA dump 分区到本地 |
+| `audit_runs` | 代码审计 run 列表 |
+| `audit_collect` | 从设备拉厂商 APK |
+| `audit_scan` | 扫 APK/ELF/init/脚本 → 事实层 |
+| `audit_list` | 候选列表，无分数，未知不沉底 |
+| `audit_get` | 读一条事实并记已读 |
+| `audit_annotate` | 标注层判断（须 cite evidence_ref） |
+| `audit_diff` | 两版本对比：修没修完 / 新攻击面 |
+| `audit_coverage` | 未读 ≠ 没问题 |
 
 ### 3.2 写入（无 token → `status=proposed`）
 
@@ -117,6 +129,7 @@ stdio 备选（ARTEX 与设备同机、不走 Docker）：
 - `kernel_cve_index.json`
 - `paydroid_cve_index.json`
 - `verifone_cve_index.json`
+- `qcom_edl_index.json`
 - `vidpid.json`
 
 Skill 引用这些文件的结论，不复制 exploit。

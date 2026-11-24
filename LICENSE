@@ -1,2 +1,22 @@
-本仓库仅供书面授权范围内的 POS / 终端安全评估使用。保留所有权利。
-禁止未授权使用、再分发 exploit，或将本包用于授权清单外的设备。
+ARTEX Terminal Authorized-Use License
+
+Copyright (c) 2026 ARTEX Terminal contributors
+
+Permission is granted to clone, modify, and run this software solely for
+security assessment of POS / payment / cash-register terminals that you are
+legally authorized in writing to test.
+
+You may not:
+
+- use this software against devices outside a written authorization
+- add or redistribute exploit source code via this project
+- imply endorsement by ARTEX, device vendors, or payment brands
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY.
+
+本仓库仅供书面授权范围内的 POS / 终端安全评估使用。
+禁止对未授权设备使用，禁止借本仓库再分发 exploit。
+软件按现状提供，不承担任何担保或损害赔偿。

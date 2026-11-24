@@ -7,7 +7,7 @@ POS 全链路渗透的执行层。Agent 通过 MCP 调 adb / fastboot / mtkclien
 HTTP 模式（给 Docker 里的 ARTEX 用，推荐）：
 
 ```
-pythonw.exe D:\二开artex\mcp\pos-delivery\run_http_9911.py
+pythonw mcp/pos-delivery/run_http_9911.py
 ```
 
 ARTEX 系统设置 → MCP：
@@ -16,20 +16,24 @@ ARTEX 系统设置 → MCP：
 - transport: `http`
 - url: `http://host.docker.internal:9911`（容器）或 `http://127.0.0.1:9911`（宿主机 ARTEX）
 
-无窗启动也可双击仓库 `scripts\launch-http.vbs`。
+无窗启动也可 `scripts/launch-http.ps1` 或双击 `scripts/launch-http.vbs`。
 
-stdio 仅在 ARTEX 与设备同机、且不走 Docker 时使用。子进程必须 `CREATE_NO_WINDOW`，禁止 `cmd /k`。包一层：
+stdio 仅在 ARTEX 与设备同机、且不走 Docker 时使用。子进程必须 `CREATE_NO_WINDOW`，禁止 `cmd /k`：
 
 ```
-pythonw.exe C:\Users\蒋蒋\.grok\bin\mcp-noconsole.py D:\二开artex\mcp\pos-delivery\server.py
+pythonw mcp/pos-delivery/server.py
 ```
 
 环境变量见 `env.example`。
 
+只读增补：`adb_surface`（uname/包名/驱动节点/监听口）、`adb_pull`、`edl_programmer_hint`（只给 firehose 文件名）。
+
+安卓/OS 代码审计（事实地图，不判漏洞）：`audit_scan` / `audit_list` / `audit_annotate` / `audit_diff` / `audit_coverage`。未知不沉底。函数级 Ghidra 请 WSL2 Treasure Map。
+
 自检（不连设备）：
 
 ```
-pythonw.exe D:\二开artex\mcp\pos-delivery\smoke.py
+python mcp/pos-delivery/smoke.py
 ```
 
 ## 写入门

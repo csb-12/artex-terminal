@@ -1,21 +1,22 @@
-# Windows Docker Desktop D: virtiofs 损坏、且 NTFS 联接会被解析回 D: 时用。
+# Windows Docker Desktop 的 D: virtiofs 损坏时用。
 # 数据/Skill 走 named volume，宿主机文件用 docker cp 灌进去（不经过 virtiofs D:）。
 #
-#   docker compose -p artex --env-file D:\ARTEX渗透\ARTEX\.env -f D:\二开artex\config\docker-compose.namedvol.yml up -d
-#   docker cp "D:\ARTEX渗透\ARTEX\grok-bridge.py" artex-artex-1:/app/grok-bridge.py
-#   docker cp "D:\ARTEX渗透\ARTEX\skills/." artex-artex-1:/app/skills/
-#   docker cp "D:\二开artex\skills/." artex-artex-1:/app/skills/
+#   python scripts/bootstrap-terminal-agent.py --init
+#   docker compose -p artex --env-file "%ARTEX_HOME%/.env" --env-file config/.compose.env -f config/docker-compose.namedvol.yml up -d
+#   docker cp "%ARTEX_HOME%/grok-bridge.py" artex-artex-1:/app/grok-bridge.py
+#   docker cp "%ARTEX_HOME%/skills/." artex-artex-1:/app/skills/
+#   docker cp "${ERKA_ROOT}/skills/." artex-artex-1:/app/skills/
 #
-# 不要叠原 docker-compose.yml（含 D: 绑定）。不要整卷 overlay 覆盖镜像 skills 以外的方式：
-# 这里 /app/skills 本身就是 named volume，必须把 api-recon / bytesrc / pos-* 一并 cp 进去。
-# 本 workaround 不挂滴滴/字节 D: 工作区。历史 data/tasks 不自动灌入（体积大）。
+# 不要叠原 docker-compose.yml（若它含坏掉的 D: 绑定）。
+# /app/skills 是 named volume，必须把 api-recon / bytesrc / pos-* 一并 cp 进去。
+# 需要 Grok 桥时在 .compose.env 里设 GROK_AUTH_JSON。
 
 services:
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-artex}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 设置 POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 ARTEX .env 设置 POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-artex}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -52,7 +53,7 @@ services:
     volumes:
       - artex_app_data:/app/data
       - artex_app_skills:/app/skills
-      - C:/Users/蒋蒋/.grok/auth.json:/auth.json
+      - ${GROK_AUTH_JSON}:/auth.json:ro
     entrypoint: ["/bin/sh", "-c"]
     command:
       - exec /app/start.sh -addr :8787 -proxy :8788

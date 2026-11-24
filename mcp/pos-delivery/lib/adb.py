@@ -38,7 +38,22 @@ PROP_KEYS = [
     "ro.serialno",
     "sys.usb.state",
     "sys.usb.config",
+    "persist.sys.usb.config",
+    "ro.bootmode",
+    "ro.sunmi.model",
+    "ro.sunmi.hardware",
+    "ro.pax.build.version",
 ]
+
+SURFACE_CMDS = {
+    "uname": "uname -a",
+    "packages": "pm list packages 2>/dev/null | head -n 80",
+    "usb_config": "getprop persist.sys.usb.config; getprop sys.usb.config; getprop sys.usb.state",
+    "adb_enabled": "settings get global adb_enabled 2>/dev/null",
+    "bootmode": "getprop ro.bootmode",
+    "nodes": "ls -l /dev/video* /dev/kgsl* /dev/mali* /dev/binder* /dev/ttyGS* /dev/ttyHSL* /dev/ttyS* 2>/dev/null",
+    "listen": "toybox netstat -lntp 2>/dev/null || netstat -lntp 2>/dev/null || ss -lntp 2>/dev/null",
+}
 
 
 def _adb() -> str | None:
@@ -126,6 +141,42 @@ def id_selinux_mounts(serial: str | None = None) -> dict:
     enf = (out["results"]["getenforce"].get("stdout") or "").strip()
     out["selinux"] = enf
     return out
+
+
+def surface(serial: str | None = None) -> dict:
+    """Packed read-only recon. One MCP call instead of a dozen adb_shell."""
+    out = {"ok": True, "serial": serial, "results": {}, "flags": {}}
+    for name, cmd in SURFACE_CMDS.items():
+        out["results"][name] = shell(serial, cmd, timeout=20)
+    nodes = (out["results"]["nodes"].get("stdout") or "")
+    out["flags"] = {
+        "has_uvc": "/dev/video" in nodes,
+        "has_kgsl": "kgsl" in nodes,
+        "has_mali": "mali" in nodes,
+        "has_binder": "binder" in nodes,
+    }
+    listen = (out["results"]["listen"].get("stdout") or "")
+    out["flags"]["listen_5555"] = ":5555" in listen
+    return out
+
+
+def pull(serial: str | None, remote: str, dest: str) -> dict:
+    if not remote or not dest:
+        return {"ok": False, "error": "missing remote or dest"}
+    if _WRITE_SHELL.search(remote) or _WRITE_SHELL.search(dest):
+        return {"ok": False, "error": "adb_pull 拒绝分区写入路径，刷写走 fastboot_* / mtk_*"}
+    exe = _adb()
+    if not exe:
+        return {"ok": False, "error": "adb 不在 PATH"}
+    argv = [exe]
+    if serial:
+        argv += ["-s", serial]
+    argv += ["pull", remote, dest]
+    r = run(argv, timeout=120)
+    r["serial"] = serial
+    r["remote"] = remote
+    r["dest"] = dest
+    return r
 
 
 def reboot(serial: str | None, mode: str) -> dict:

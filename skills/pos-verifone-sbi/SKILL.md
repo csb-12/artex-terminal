@@ -6,7 +6,7 @@ mcps: pos-delivery
 
 # Verifone SBI 链（CVE-2019-14715）
 
-公开问题：SBI bootloader 经 RS232 XDL 接受未签名内存写，可覆盖正在运行的 SBI，并在内核态把 `H.OUT` 标成已认证，从而持久化自定义可执行文件。本 Skill 不内置 XDL 帧或 overlay 字节。
+公开问题：SBI bootloader 经 RS232 XDL 接受未签名内存写，可覆盖正在运行的 SBI，并在内核态把 `H.OUT` 标成已认证，从而持久化自定义可执行文件。本 Skill 不内置 XDL 帧或 overlay 字节。本节是判定地图：进不了 SBI 就换波特率/按键，不要改去刷 Android 分区。
 
 逐步操作模板见仓库 `docs/04-Verifone-SBI验证步骤模板.md`。
 
@@ -14,7 +14,7 @@ mcps: pos-delivery
 
 1. 授权必须含物理接触（按键组合 + 串口）。
 2. `uart_list_ports` 列本机 COM。
-3. `uart_probe` 读 banner：SBI / XDL / download / 无认证提示。
+3. `uart_probe` 读 banner（会先打 CR/LF）：SBI / XDL / download / 无认证提示。无输出先换波特率再判死。
 4. `cve_match_verifone`：VX520/680/690/820、MX900/915/925、e355。
 5. USB 枚举作辅证；本链主入口是 UART/RS232，不是 ADB。
 

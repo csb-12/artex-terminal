@@ -13,10 +13,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable
 from urllib.parse import urlparse
 
-from lib import adb, cve_match, deliver, fastboot, fingerprint, mtk, proposed, uart, usb
+from lib import adb, audit, cve_match, deliver, fastboot, fingerprint, mtk, proposed, uart, usb
 
 SERVER_NAME = "pos-delivery"
-SERVER_VERSION = "1.0.0"
+SERVER_VERSION = "1.2.0"
 PROTOCOL = "2025-06-18"
 
 
@@ -95,6 +95,17 @@ def t_adb_reboot(args: dict) -> dict:
     return _text(adb.reboot(args.get("serial"), mode))
 
 
+def t_adb_surface(args: dict) -> dict:
+    return _text(adb.surface(args.get("serial")))
+
+
+def t_adb_pull(args: dict) -> dict:
+    err = _need(args, "remote", "dest")
+    if err:
+        return _text({"error": err}, True)
+    return _text(adb.pull(args.get("serial"), args["remote"], args["dest"]))
+
+
 def t_fastboot_devices(_args: dict) -> dict:
     return _text(fastboot.devices())
 
@@ -124,6 +135,8 @@ def t_fingerprint_classify(args: dict) -> dict:
             args.get("props") or {},
             args.get("vidpid"),
             args.get("fastboot_vars"),
+            args.get("adb_state"),
+            args.get("usb_tags"),
         )
     )
 
@@ -135,6 +148,19 @@ def t_cve_match_kernel(args: dict) -> dict:
             args.get("kernel_release") or "",
             args.get("platform") or "",
             args.get("has_uvc"),
+            args.get("has_kgsl"),
+            args.get("has_mali"),
+            args.get("android_release") or "",
+        )
+    )
+
+
+def t_edl_programmer_hint(args: dict) -> dict:
+    return _text(
+        cve_match.edl_programmer_hint(
+            args.get("soc") or "",
+            args.get("model") or "",
+            args.get("platform") or "",
         )
     )
 
@@ -313,6 +339,71 @@ def t_magisk_patch_boot(args: dict) -> dict:
     )
 
 
+def t_audit_runs(_args: dict) -> dict:
+    return _text(audit.list_runs())
+
+
+def t_audit_collect(args: dict) -> dict:
+    err = _need(args, "run")
+    if err:
+        return _text({"error": err}, True)
+    dest = args.get("dest") or str(audit.atlas_dir() / args["run"] / "pull")
+    return _text(audit.collect_from_device(args.get("serial"), dest, args["run"]))
+
+
+def t_audit_scan(args: dict) -> dict:
+    err = _need(args, "root", "run")
+    if err:
+        return _text({"error": err}, True)
+    return _text(audit.scan_tree(args["root"], args["run"], int(args.get("limit") or 400)))
+
+
+def t_audit_list(args: dict) -> dict:
+    err = _need(args, "run")
+    if err:
+        return _text({"error": err}, True)
+    return _text(
+        audit.list_candidates(
+            args["run"],
+            args.get("kind"),
+            args.get("sort") or "default",
+            int(args.get("limit") or 40),
+            bool(args.get("hide_safe", True)),
+        )
+    )
+
+
+def t_audit_get(args: dict) -> dict:
+    err = _need(args, "run", "evidence_ref")
+    if err:
+        return _text({"error": err}, True)
+    return _text(audit.get_candidate(args["run"], args["evidence_ref"]))
+
+
+def t_audit_annotate(args: dict) -> dict:
+    err = _need(args, "run", "evidence_ref", "judgment")
+    if err:
+        return _text({"error": err}, True)
+    cites = args.get("cites")
+    if isinstance(cites, str):
+        cites = [cites]
+    return _text(audit.annotate(args["run"], args["evidence_ref"], args["judgment"], cites, args.get("incomplete_patch")))
+
+
+def t_audit_diff(args: dict) -> dict:
+    err = _need(args, "before", "after")
+    if err:
+        return _text({"error": err}, True)
+    return _text(audit.diff_runs(args["before"], args["after"]))
+
+
+def t_audit_coverage(args: dict) -> dict:
+    err = _need(args, "run")
+    if err:
+        return _text({"error": err}, True)
+    return _text(audit.coverage(args["run"]))
+
+
 def t_payload_deliver(args: dict) -> dict:
     err = _need(args, "cve")
     if err:
@@ -342,13 +433,16 @@ TOOLS: list[dict[str, Any]] = [
     {"name": "adb_id_selinux_mounts", "description": "id / getenforce / mounts / by-name 分区，判断 shell 权限和可写分区。", "inputSchema": _schema({"serial": SERIAL}), "fn": t_adb_id_selinux_mounts},
     {"name": "adb_shell", "description": "adb shell 执行一条命令。侦察用；不要用来 dd/刷分区。", "inputSchema": _schema({"serial": SERIAL, "command": {"type": "string"}, "timeout": {"type": "integer"}}, ["command"]), "fn": t_adb_shell},
     {"name": "adb_reboot", "description": "adb reboot [bootloader|edl|recovery]。进 fastboot/EDL，不是分区写入。", "inputSchema": _schema({"serial": SERIAL, "mode": {"type": "string", "enum": ["bootloader", "edl", "recovery", "system"]}}), "fn": t_adb_reboot},
+    {"name": "adb_surface", "description": "打包只读侦察：uname、包名、USB 配置、驱动节点、监听口。判断 UVC/kgsl/mali 前置。", "inputSchema": _schema({"serial": SERIAL}), "fn": t_adb_surface},
+    {"name": "adb_pull", "description": "从设备拉文件到本地（只读 dump）。不要用来刷分区。", "inputSchema": _schema({"serial": SERIAL, "remote": {"type": "string"}, "dest": {"type": "string"}}, ["remote", "dest"]), "fn": t_adb_pull},
     {"name": "fastboot_devices", "description": "fastboot devices -l", "inputSchema": _schema({}), "fn": t_fastboot_devices},
     {"name": "fastboot_getvar", "description": "fastboot getvar all + unlocked/secure/variant 等。", "inputSchema": _schema({"serial": SERIAL}), "fn": t_fastboot_getvar},
     {"name": "fastboot_oem_help", "description": "只读探测 oem help / 隐藏命令面，不刷机。", "inputSchema": _schema({"serial": SERIAL}), "fn": t_fastboot_oem_help},
     {"name": "uart_list_ports", "description": "列出本机串口，供 UART 测试点接入。", "inputSchema": _schema({}), "fn": t_uart_list_ports},
     {"name": "uart_probe", "description": "打开串口读 banner，判断是否无认证 root/debug shell。", "inputSchema": _schema({"port": {"type": "string"}, "baud": {"type": "integer"}, "seconds": {"type": "number"}}, ["port"]), "fn": t_uart_probe},
-    {"name": "fingerprint_classify", "description": "根据 getprop/VIDPID/fastboot 变量分类厂商与平台，输出利用假设与下一 Skill。", "inputSchema": _schema({"props": {"type": "object"}, "vidpid": {"type": "array", "items": {"type": "string"}}, "fastboot_vars": {"type": "object"}}), "fn": t_fingerprint_classify},
-    {"name": "cve_match_kernel", "description": "security_patch / kernel 与已知 Android 内核 LPE 匹配，不含 exploit。", "inputSchema": _schema({"security_patch": {"type": "string"}, "kernel_release": {"type": "string"}, "platform": {"type": "string"}, "has_uvc": {"type": "boolean"}}), "fn": t_cve_match_kernel},
+    {"name": "fingerprint_classify", "description": "根据 getprop/VIDPID/fastboot/adb_state 分类厂商与平台，输出利用假设与下一 Skill。", "inputSchema": _schema({"props": {"type": "object"}, "vidpid": {"type": "array", "items": {"type": "string"}}, "fastboot_vars": {"type": "object"}, "adb_state": {"type": "string"}, "usb_tags": {"type": "array", "items": {"type": "string"}}}), "fn": t_fingerprint_classify},
+    {"name": "cve_match_kernel", "description": "security_patch / kernel / 驱动节点与已知 Android 内核 LPE 匹配，不含 exploit。", "inputSchema": _schema({"security_patch": {"type": "string"}, "kernel_release": {"type": "string"}, "platform": {"type": "string"}, "has_uvc": {"type": "boolean"}, "has_kgsl": {"type": "boolean"}, "has_mali": {"type": "boolean"}, "android_release": {"type": "string"}}), "fn": t_cve_match_kernel},
+    {"name": "edl_programmer_hint", "description": "按 SoC/型号提示高通 EDL firehose 文件名。不提供程序员本体。", "inputSchema": _schema({"soc": {"type": "string"}, "model": {"type": "string"}, "platform": {"type": "string"}}), "fn": t_edl_programmer_hint},
     {"name": "cve_match_paydroid", "description": "型号/指纹是否落入 CVE-2023-42134 PayDroid 影响面。", "inputSchema": _schema({"model": {"type": "string"}, "display_id": {"type": "string"}, "fingerprint": {"type": "string"}}), "fn": t_cve_match_paydroid},
     {"name": "cve_match_verifone", "description": "型号是否落入 CVE-2019-14715 SBI 影响面。", "inputSchema": _schema({"model": {"type": "string"}, "extra": {"type": "string"}}), "fn": t_cve_match_verifone},
     {"name": "magisk_feasibility", "description": "按 Android 版本和 AVB/锁状态评估 Magisk 持久化是否可行。", "inputSchema": _schema({"release": {"type": "string"}, "verifiedboot": {"type": "string"}, "flash_locked": {"type": "string"}, "slot_suffix": {"type": "string"}}), "fn": t_magisk_feasibility},
@@ -367,6 +461,14 @@ TOOLS: list[dict[str, Any]] = [
     {"name": "xdl_upload", "description": "【写入】RS232 XDL 上传。无 token 只 proposed。", "inputSchema": _schema({"payload_path": {"type": "string"}, "port": {"type": "string"}, "confirm_token": TOKEN}, ["payload_path"]), "fn": t_xdl_upload},
     {"name": "magisk_patch_boot", "description": "【写入】外部服务修补 boot。无 token 只 proposed。", "inputSchema": _schema({"boot_image": {"type": "string"}, "serial": SERIAL, "vbmeta_disable": {"type": "boolean"}, "confirm_token": TOKEN}, ["boot_image"]), "fn": t_magisk_patch_boot},
     {"name": "payload_deliver", "description": "【写入】把 CVE/阶段元数据交给外部 exploit 编译投递服务。无 token 只 proposed。", "inputSchema": _schema({"cve": {"type": "string"}, "stage": {"type": "string"}, "target": {"type": "string"}, "confirm_token": TOKEN}, ["cve"]), "fn": t_payload_deliver},
+    {"name": "audit_runs", "description": "列出安卓/OS 代码审计 run（事实地图）。不判断漏洞。", "inputSchema": _schema({}), "fn": t_audit_runs},
+    {"name": "audit_collect", "description": "从已授权设备拉厂商 APK 到本地并扫描。只采集事实。", "inputSchema": _schema({"run": {"type": "string"}, "serial": SERIAL, "dest": {"type": "string"}}, ["run"]), "fn": t_audit_collect},
+    {"name": "audit_scan", "description": "扫描已解包固件/系统目录或 APK：ELF 危险导入、APK exported/DEX、init/脚本。事实层只读。", "inputSchema": _schema({"root": {"type": "string"}, "run": {"type": "string"}, "limit": {"type": "integer"}}, ["root", "run"]), "fn": t_audit_scan},
+    {"name": "audit_list", "description": "列出候选。无分数。未知不沉底。sort=default 或六层之一。", "inputSchema": _schema({"run": {"type": "string"}, "kind": {"type": "string"}, "sort": {"type": "string"}, "limit": {"type": "integer"}, "hide_safe": {"type": "boolean"}}, ["run"]), "fn": t_audit_list},
+    {"name": "audit_get", "description": "读一条事实并记为已读。判断仍要 audit_annotate。", "inputSchema": _schema({"run": {"type": "string"}, "evidence_ref": {"type": "string"}}, ["run", "evidence_ref"]), "fn": t_audit_get},
+    {"name": "audit_annotate", "description": "把判断写入标注层，必须引用 evidence_ref。禁止 PoC/payload。", "inputSchema": _schema({"run": {"type": "string"}, "evidence_ref": {"type": "string"}, "judgment": {"type": "string"}, "cites": {"type": "array", "items": {"type": "string"}}, "incomplete_patch": {"type": "string"}}, ["run", "evidence_ref", "judgment"]), "fn": t_audit_annotate},
+    {"name": "audit_diff", "description": "对比两个 audit run：修没修完、新攻击面。函数级请 WSL tmap。", "inputSchema": _schema({"before": {"type": "string"}, "after": {"type": "string"}}, ["before", "after"]), "fn": t_audit_diff},
+    {"name": "audit_coverage", "description": "已读/已判/未读。未读 ≠ 没问题。", "inputSchema": _schema({"run": {"type": "string"}}, ["run"]), "fn": t_audit_coverage},
 ]
 
 TOOL_FN = {t["name"]: t["fn"] for t in TOOLS}

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
 from .winproc import run, which
 
 VIDPID_DB = json.loads((Path(__file__).resolve().parent.parent / "data" / "vidpid.json").read_text(encoding="utf-8"))
+_LSUSB_ID = re.compile(r"id\s+([0-9a-f]{4}):([0-9a-f]{4})", re.I)
 
 
 def _classify_vidpid(vid: str, pid: str) -> list[str]:
@@ -17,6 +19,20 @@ def _classify_vidpid(vid: str, pid: str) -> list[str]:
             if it["vid"].lower() == v and it["pid"].lower() == p:
                 tags.append(group)
     return tags
+
+
+def _row(name: str, cls: str, status: str, inst: str, vid: str, pid: str) -> dict:
+    tags = _classify_vidpid(vid, pid) if vid and pid else []
+    return {
+        "name": name,
+        "class": cls,
+        "status": status,
+        "instance": inst,
+        "vid": vid.lower() if vid else "",
+        "pid": pid.lower() if pid else "",
+        "vidpid": f"{vid.lower()}:{pid.lower()}" if vid and pid else "",
+        "tags": tags,
+    }
 
 
 def enum_usb() -> dict:
@@ -57,19 +73,47 @@ def enum_usb() -> dict:
                     pid = up.split("PID_")[1][:4]
                 except IndexError:
                     pid = ""
-            tags = _classify_vidpid(vid, pid) if vid and pid else []
             devices.append(
-                {
-                    "name": row.get("FriendlyName"),
-                    "class": row.get("Class"),
-                    "status": row.get("Status"),
-                    "instance": inst,
-                    "vid": vid,
-                    "pid": pid,
-                    "tags": tags,
-                }
+                _row(
+                    str(row.get("FriendlyName") or ""),
+                    str(row.get("Class") or ""),
+                    str(row.get("Status") or ""),
+                    inst,
+                    vid,
+                    pid,
+                )
             )
-        return {"ok": True, "devices": devices, "adb_tags": [d for d in devices if "adb" in d["tags"] or "mtk" in "".join(d["tags"])]}
-    # Linux: /sys/bus/usb
+        return _pack(True, devices)
+
     r = run(["lsusb"], timeout=10)
-    return {"ok": r.get("ok"), "raw": r.get("stdout"), "stderr": r.get("stderr")}
+    raw = r.get("stdout") or ""
+    for line in raw.splitlines():
+        m = _LSUSB_ID.search(line)
+        if not m:
+            continue
+        vid, pid = m.group(1), m.group(2)
+        devices.append(_row(line.strip(), "usb", "present", line.strip(), vid, pid))
+    return _pack(bool(r.get("ok")), devices, raw=raw, stderr=r.get("stderr"))
+
+
+def _pack(ok: bool, devices: list[dict], **extra) -> dict:
+    tags = []
+    vidpid = []
+    for d in devices:
+        tags.extend(d.get("tags") or [])
+        if d.get("vidpid"):
+            vidpid.append(d["vidpid"])
+    interesting = [
+        d
+        for d in devices
+        if d.get("tags")
+        or (d.get("class") or "").lower() in ("androidusbdeviceclass", "androidusbdevice", "ports", "modem", "usbdevice")
+    ]
+    return {
+        "ok": ok,
+        "devices": devices,
+        "vidpid": sorted(set(vidpid)),
+        "tags": sorted(set(tags)),
+        "interesting": interesting,
+        **extra,
+    }

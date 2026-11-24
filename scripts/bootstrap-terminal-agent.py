@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 """把现有 ARTEX 特化成「终端渗透」Agent（幂等，只打 HTTP API，不改 Go 源码）。
 
-用法（无黑窗解释器）：
-  C:\\Users\\蒋蒋\\.grok\\agent-python\\python.exe D:\\二开artex\\scripts\\bootstrap-terminal-agent.py --self-check
-  ... --dry-run
-  ... --password <ARTEX密码>
-  ... --host-mcp          # 宿主机 ARTEX，MCP URL 用 127.0.0.1:9911
-  ... --token <JWT>       # 已有 token 则跳过登录
-  ... --specialize-pentest  # 用终端人格整份替换 pentest 提示词（默认否，会丢掉 Web SRC）
+用法（在本仓库根目录）：
+  python scripts/bootstrap-terminal-agent.py --self-check
+  python scripts/bootstrap-terminal-agent.py --init
+  python scripts/bootstrap-terminal-agent.py
+  python scripts/bootstrap-terminal-agent.py --dry-run
+  python scripts/bootstrap-terminal-agent.py --password <ARTEX密码>
+  python scripts/bootstrap-terminal-agent.py --host-mcp
+  python scripts/bootstrap-terminal-agent.py --via-postgres
 
 密码来源：--password > 环境变量 ARTEX_PASSWORD > config/.artex-auth.json
 本脚本不打印密码，不写进任何日志。
@@ -19,6 +20,7 @@ import json
 import os
 import re
 import socket
+import subprocess
 import sys
 import threading
 import urllib.error
@@ -43,6 +45,7 @@ POS_SKILLS = [
     "pos-mtk-brom",
     "pos-android-lpe",
     "pos-takeover",
+    "pos-code-audit",
 ]
 DEFAULT_INTERCEPT_TOOLS = [
     "Bash",
@@ -84,10 +87,17 @@ REQUIRED_FILES = [
     "config/docker-compose.cdrive.yml",
     "config/docker-compose.namedvol.yml",
     "config/docker-compose.override.example.yml",
+    "config/compose.env.example",
     "scripts/launch-http.vbs",
+    "scripts/launch-http.ps1",
+    "LICENSE",
+    "SECURITY.md",
     "mcp/pos-delivery/server.py",
+    "mcp/pos-delivery/data/qcom_edl_index.json",
+    "mcp/pos-delivery/data/kernel_cve_index.json",
     "docs/06-终端渗透Agent.md",
 ]
+GRAPH_TOOLS = ["insert_assets", "list_assets", "list_companies"]
 
 
 class APIError(RuntimeError):
@@ -184,7 +194,7 @@ def self_check() -> list[str]:
     if man.get("mcp_name") != "pos-delivery":
         errors.append("manifest mcp_name 必须是 pos-delivery")
     if man.get("skills") != POS_SKILLS:
-        errors.append(f"manifest skills 与七目录不一致: {man.get('skills')}")
+        errors.append(f"manifest skills 与八目录不一致: {man.get('skills')}")
     if "terminal" not in (man.get("wire_agents") or []):
         errors.append("wire_agents 必须含 terminal")
     if "terminal" in (man.get("addendum_agents") or []):
@@ -194,13 +204,31 @@ def self_check() -> list[str]:
     if "{{" in term:
         errors.append("agent/terminal.md 含 {{ ，自定义 Agent 渲染会失败")
     if "pos-pentest" not in term or "usb_enum" not in term:
-        errors.append("terminal.md 缺少第一回合 Skill pos-pentest / usb_enum")
+        errors.append("terminal.md 缺少开局 Skill pos-pentest / usb_enum")
     if "一键 root" not in term:
         errors.append("terminal.md 未禁止一键 root")
+    if "核心心法" not in term:
+        errors.append("terminal.md 缺少原版 ARTEX 核心心法结构")
+    if "自主决策" not in term:
+        errors.append("terminal.md 缺少自主决策段")
+    if "每轮必须交代" in term:
+        errors.append("terminal.md 不应再强制每轮状态报告")
+    if "TodoWrite" not in term:
+        errors.append("terminal.md 缺少 TodoWrite 路线组合")
+    if "fingerprint_classify" not in term:
+        errors.append("terminal.md 缺少 fingerprint_classify")
+    if "只加载 next_skills[0]" in term:
+        errors.append("terminal.md 把分类器当指挥官了")
+    if "必须按这个顺序" in term:
+        errors.append("terminal.md 不应再写死板第一回合顺序")
 
     add = load_text(PACK / "agent" / "orchestration-addendum.md") if (PACK / "agent" / "orchestration-addendum.md").is_file() else ""
     if ADD_START not in add or ADD_END not in add:
         errors.append("orchestration-addendum.md 缺幂等标记")
+    if "建议不是命令" not in add:
+        errors.append("orchestration-addendum.md 缺少自主决策口径")
+    if "只加载 next_skills[0]" in add:
+        errors.append("orchestration-addendum.md 把分类器当指挥官了")
     if "{{" in add:
         errors.append("orchestration-addendum.md 含 {{")
 
@@ -256,12 +284,39 @@ def self_check() -> list[str]:
         if re.search(r"二开artex/skills:/app/skills(?:\s|$)", text):
             errors.append(f"{rel} 整卷 overlay 了 /app/skills，会盖掉 api-recon/bytesrc")
         binds = re.findall(r"/app/skills/pos-[a-z0-9-]+", text)
-        if len(set(binds)) != 7:
-            errors.append(f"{rel} pos-* 挂载 {sorted(set(binds))} 不是 7 个")
+        if len(set(binds)) != 8:
+            errors.append(f"{rel} pos-* 挂载 {sorted(set(binds))} 不是 8 个")
+        if "${ERKA_ROOT}" not in text:
+            errors.append(f"{rel} 必须用 ${{ERKA_ROOT}} 挂载，不要写死本机路径")
 
     gi = load_text(PACK / ".gitignore") if (PACK / ".gitignore").is_file() else ""
     if "config/.artex-auth.json" not in gi:
         errors.append(".gitignore 未忽略 config/.artex-auth.json")
+    if "config/.compose.env" not in gi:
+        errors.append(".gitignore 未忽略 config/.compose.env")
+
+    for rel in (
+        "README.md",
+        "LICENSE",
+        "NOTICE.md",
+        "SECURITY.md",
+        "CONTRIBUTING.md",
+        "scripts/launch-http.vbs",
+        "scripts/launch-http.ps1",
+        "scripts/bootstrap-terminal-agent.py",
+        "config/docker-compose.terminal.yml",
+        "config/docker-compose.override.example.yml",
+        "config/docker-compose.namedvol.yml",
+        "config/docker-compose.cdrive.yml",
+        "config/compose.env.example",
+        "docs/02-Skill与MCP接口.md",
+        "docs/05-挂载到ARTEX.md",
+        "docs/06-终端渗透Agent.md",
+        "mcp/pos-delivery/README.md",
+    ):
+        p = PACK / rel
+        if p.is_file() and "\u848b\u848b" in load_text(p):
+            errors.append(f"{rel} 含本机用户名，不能公开")
 
     example = PACK / "config" / "artex-auth.example.json"
     if example.is_file():
@@ -273,6 +328,47 @@ def self_check() -> list[str]:
             errors.append(f"artex-auth.example.json {e}")
 
     return errors
+
+
+def docker_slash(p: Path) -> str:
+    return str(p.resolve()).replace("\\", "/")
+
+
+def write_compose_env() -> Path:
+    out = PACK / "config" / ".compose.env"
+    lines = [
+        "# generated by bootstrap --init; do not commit",
+        f"ERKA_ROOT={docker_slash(PACK)}",
+    ]
+    grok = Path.home() / ".grok" / "auth.json"
+    if grok.is_file():
+        lines.append(f"GROK_AUTH_JSON={docker_slash(grok)}")
+    artex = (os.environ.get("ARTEX_HOME") or "").strip()
+    if artex:
+        lines.append(f"ARTEX_HOME={docker_slash(Path(artex))}")
+    userprofile = Path.home()
+    artex_bind = userprofile / "artex-bind"
+    erka_bind = userprofile / "erka-bind"
+    if artex_bind.exists():
+        lines.append(f"ARTEX_BIND={docker_slash(artex_bind)}")
+    if erka_bind.exists():
+        lines.append(f"ERKA_BIND={docker_slash(erka_bind)}")
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return out
+
+
+def print_init_help(env_path: Path) -> None:
+    log(f"已写入 {env_path}")
+    log("")
+    log("下一步：")
+    log("  1. python -m pip install -r mcp/pos-delivery/requirements.txt")
+    log("  2. pythonw mcp/pos-delivery/run_http_9911.py")
+    log("     或 scripts/launch-http.ps1 / scripts/launch-http.vbs")
+    log("  3. 设置 ARTEX_HOME 为你的 ARTEX 安装目录，挂 Skill：")
+    log("     docker compose --env-file config/.compose.env -f \"%ARTEX_HOME%/docker-compose.yml\" -f config/docker-compose.terminal.yml up -d")
+    log("  4. 复制 config/artex-auth.example.json → config/.artex-auth.json 并填密码")
+    log("  5. python scripts/bootstrap-terminal-agent.py")
+    log(f"  ERKA_ROOT={docker_slash(PACK)}")
 
 
 class Artex:
@@ -425,17 +521,30 @@ def seed(args: argparse.Namespace) -> int:
         log(f"ARTEX 健康检查失败: {url}/api/health  （先在 {url} 打开 UI）")
         return 3
 
+    api = None
     if token:
-        api = Artex(url, token)
+        probe = Artex(url, token)
         try:
-            api.get("/api/agents")
+            probe.get("/api/agents")
+            api = probe
+            log("使用已有 token")
         except APIError as e:
-            log(f"token 无效或已过期: {e}")
-            return 4
-        log("使用已有 token")
-    else:
+            if e.status in (401, 403) and password:
+                log("token 无效或已过期，改用密码登录")
+            else:
+                log(f"token 无效或已过期: {e}")
+                log("本机 Docker 可改跑: --via-postgres  （只写提示词/加段，不管 MCP）")
+                return 4
+    if api is None:
+        if not password:
+            log("没有密码或 token。复制 config/artex-auth.example.json 为 config/.artex-auth.json 并填密码，或设 ARTEX_PASSWORD / ARTEX_TOKEN / --password / --token")
+            return 2
         guest = Artex(url)
-        tok = guest.post("/api/auth/login", {"username": user, "password": password}).get("token")
+        try:
+            tok = guest.post("/api/auth/login", {"username": user, "password": password}).get("token")
+        except APIError as e:
+            log(f"登录失败: {e}")
+            return 4
         if not tok:
             log("登录成功但响应没有 token")
             return 4
@@ -594,8 +703,165 @@ def seed(args: argparse.Namespace) -> int:
         api.put(f"/api/agents/{ag_key}/prompt", {"template": new_p, "note": "终端渗透路由加段"})
         log(f"已写入加段 {ag_key}")
 
+    bind_graph_tools(api, key)
+
     log("完成。聊天页选「终端渗透」。第一条先让它加载 pos-pentest。MCP 必须先在 :9911 听着。")
     return 0
+
+
+def _dollar(s: str, tag: str = "body") -> str:
+    t = tag
+    while f"${t}$" in s:
+        t += "x"
+    return f"${t}${s}${t}$"
+
+
+def _psql(container: str, sql: str) -> str:
+    r = subprocess.run(
+        ["docker", "exec", "-i", container, "psql", "-U", "artex", "-d", "artex", "-v", "ON_ERROR_STOP=1", "-tA"],
+        input=sql.encode("utf-8"),
+        capture_output=True,
+    )
+    if r.returncode != 0:
+        err = (r.stderr or b"").decode("utf-8", "replace") + (r.stdout or b"").decode("utf-8", "replace")
+        raise RuntimeError(err.strip() or f"psql exit {r.returncode}")
+    return (r.stdout or b"").decode("utf-8")
+
+
+def plant_via_postgres(args: argparse.Namespace) -> int:
+    """UI 登录不可用时，把人格/加段/wrapup 写进本机 ARTEX postgres。不管 MCP/拦截。"""
+    man = load_json(MANIFEST)
+    prompt = load_text(PACK / man["prompt_file"])
+    wrapup = load_text(PACK / man["wrapup_file"])
+    addendum = load_text(PACK / man["addendum_file"])
+    desc = str(man.get("description") or "")
+    name = str(man.get("name") or "终端渗透")
+    key = man["key"]
+    add_agents = list(man["addendum_agents"])
+    container = args.postgres_container
+    if args.dry_run:
+        log(f"dry-run --via-postgres container={container} 将写 {key} + 加段 {', '.join(add_agents)}")
+        return 0
+    try:
+        keys = _psql(container, "select key from agents order by key;")
+    except Exception as e:
+        log(f"连不上 postgres 容器 {container}: {e}")
+        return 7
+    have = {ln.strip() for ln in keys.splitlines() if ln.strip()}
+    if key not in have:
+        log(f"库里没有 agent {key}，先用 API bootstrap 创建")
+        return 7
+
+    sql: list[str] = []
+    sql.append("BEGIN;")
+    sql.append(
+        "DO $do$\n"
+        "DECLARE aid bigint; pid bigint; ver int;\n"
+        "BEGIN\n"
+        f"  SELECT id INTO aid FROM agents WHERE key = {_dollar(key, 'k')};\n"
+        "  SELECT COALESCE(max(version),0)+1 INTO ver FROM agent_prompts WHERE agent_id = aid;\n"
+        "  INSERT INTO agent_prompts(agent_id,version,template_text,note,updated_by)\n"
+        f"  VALUES (aid, ver, {_dollar(prompt, 'p')}, '二开 terminal 人格', 'via-postgres')\n"
+        "  RETURNING id INTO pid;\n"
+        "  UPDATE agents SET current_prompt_id = pid,\n"
+        f"    name = {_dollar(name, 'n')},\n"
+        f"    description = {_dollar(desc, 'd')},\n"
+        f"    wrapup_prompt = {_dollar(wrapup, 'w')}\n"
+        "    WHERE id = aid;\n"
+        "END\n"
+        "$do$;"
+    )
+
+    fetch = _psql(
+        container,
+        "select json_build_object('key', a.key, 'template', coalesce(p.template_text,''))::text "
+        "from agents a left join agent_prompts p on p.id=a.current_prompt_id "
+        f"where a.key in ({','.join(_dollar(k, 'a'+str(i)) for i,k in enumerate(add_agents))});",
+    )
+    current: dict[str, str] = {}
+    for ln in fetch.splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        row = json.loads(ln)
+        current[row["key"]] = row.get("template") or ""
+
+    for i, ag_key in enumerate(add_agents):
+        if ag_key not in have:
+            log(f"跳过加段 {ag_key}（库里没有）")
+            continue
+        if args.specialize_pentest and ag_key == "pentest":
+            new_p = prompt
+            note = "specialize-pentest=terminal"
+        else:
+            new_p = upsert_addendum(current.get(ag_key, ""), addendum)
+            note = "终端渗透路由加段"
+        if new_p == current.get(ag_key, ""):
+            log(f"加段 {ag_key} 已在")
+            continue
+        tag = f"t{i}"
+        sql.append(
+            "DO $do$\n"
+            "DECLARE aid bigint; pid bigint; ver int;\n"
+            "BEGIN\n"
+            f"  SELECT id INTO aid FROM agents WHERE key = {_dollar(ag_key, 'k'+tag)};\n"
+            "  SELECT COALESCE(max(version),0)+1 INTO ver FROM agent_prompts WHERE agent_id = aid;\n"
+            "  INSERT INTO agent_prompts(agent_id,version,template_text,note,updated_by)\n"
+            f"  VALUES (aid, ver, {_dollar(new_p, 'p'+tag)}, {_dollar(note, 'n'+tag)}, 'via-postgres')\n"
+            "  RETURNING id INTO pid;\n"
+            "  UPDATE agents SET current_prompt_id = pid WHERE id = aid;\n"
+            "END\n"
+            "$do$;"
+        )
+        log(f"将写入加段 {ag_key}")
+
+    sql.append("COMMIT;")
+    try:
+        _psql(container, "\n".join(sql))
+    except Exception as e:
+        log(f"写入 postgres 失败: {e}")
+        return 7
+
+    check = _psql(
+        container,
+        "select case when p.template_text like '%自主决策%' then 'yes' else 'no' end "
+        "from agents a join agent_prompts p on p.id=a.current_prompt_id where a.key='terminal';",
+    ).strip()
+    if check != "yes":
+        log("写入后 terminal 提示词未含「自主决策」，请检查")
+        return 7
+    log(f"已经 docker postgres 写入 {key} 人格/wrapup，以及编排加段。MCP/拦截未改（需要 API 登录）。")
+    return 0
+
+
+def bind_graph_tools(api: Artex, agent_key: str) -> None:
+    """聊天页没有探索图，但 insert_assets/list_assets 仍可写全局资产图。不绑 report_finding。"""
+    try:
+        rows = api.get("/api/tools").get("tools") or []
+    except Exception as e:
+        log(f"读工具目录失败，跳过资产图绑定: {e}")
+        return
+    by = {t.get("key"): t for t in rows if isinstance(t, dict)}
+    for tool_key in GRAPH_TOOLS:
+        row = by.get(tool_key)
+        if not row:
+            log(f"跳过绑工具 {tool_key}（目录无此工具）")
+            continue
+        agents = list(row.get("agents") or [])
+        if agent_key in agents:
+            log(f"工具 {tool_key} 已绑 {agent_key}")
+            continue
+        body = {
+            "description": row.get("description") or "",
+            "schema": row.get("schema") if row.get("schema") is not None else {},
+            "agents": agents + [agent_key],
+            "enabled": bool(row.get("enabled", True)),
+        }
+        try:
+            api.put(f"/api/tools/{tool_key}", body)
+            log(f"已把 {tool_key} 绑到 {agent_key}")
+        except Exception as e:
+            log(f"绑定 {tool_key} 失败: {e}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -611,6 +877,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="用 terminal.md 整份替换 pentest 提示词。默认否：只加路由段，保留滴滴/字节 Web SRC",
     )
+    ap.add_argument(
+        "--via-postgres",
+        action="store_true",
+        help="UI token 过期时，经本机 docker postgres 写 terminal 人格/wrapup/编排加段",
+    )
+    ap.add_argument("--postgres-container", default="artex-postgres-1", help="postgres 容器名")
+    ap.add_argument(
+        "--init",
+        action="store_true",
+        help="写入 config/.compose.env（ERKA_ROOT=本仓库），打印别人克隆后的下一步",
+    )
     args = ap.parse_args(argv)
 
     errs = self_check()
@@ -621,7 +898,12 @@ def main(argv: list[str] | None = None) -> int:
     log("SELF-CHECK PASS  包文件齐全")
     if args.self_check:
         return 0
+    if args.init:
+        print_init_help(write_compose_env())
+        return 0
     try:
+        if args.via_postgres:
+            return plant_via_postgres(args)
         return seed(args)
     except APIError as e:
         log(str(e))

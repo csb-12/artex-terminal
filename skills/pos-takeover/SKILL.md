@@ -1,19 +1,21 @@
 ---
 name: pos-takeover
-description: POS 已拿到 root 或内核 ACE 后做接管判定。Magisk 补 boot、关 vbmeta、Zygisk/DenyList/Shamiko 对抗支付进程 root 检测；或 bootloader/seccfg/SBI 级持久化。
+description: POS 已拿到 root 或内核 ACE 后做接管判定。Magisk 补 boot、关 vbmeta、Zygisk/DenyList/Shamiko 对抗支付进程 root 检测；或 bootloader/seccfg/SBI 级持久化。内核 ACE 不等于 TEE/卡数据。
 mcps: pos-delivery
 ---
 
 # 接管判定
 
-前置：已经有 uid=0、自定义内核在跑、DA/fastboot 可写 boot、或 SBI 已 overlay。本 Skill 决定持久化路线，并给出「接管是否成立」。
+前置：已经有 uid=0、自定义内核在跑、DA/fastboot 可写 boot、或 SBI 已 overlay。本 Skill 决定持久化路线，并给出「接管是否成立」。本节是判定地图：Magisk 不是默认，路线由你根据可行性 JSON 和来源链选。
+
+对抗式自检：宣称 ACE/接管前，用与首次**不同**的命令再看一次 uid / Magisk / 支付进程。不要把完整 PAN / 磁道 / PIN 写进会话。内核 ACE 不是支付密钥或 TEE 被打穿。
 
 ## 攻击面枚举
 
 1. 再跑 `adb_getprop` + `adb_id_selinux_mounts`（重启后也要跑）。
 2. `magisk_feasibility`：`release`、`verifiedboot`、`flash_locked`、`slot_suffix`。
-3. 分区：by-name 是否有 `boot`/`boot_a`/`vbmeta`/`seccfg`。
-4. 支付进程：`adb_shell` `ps -A` 找 POS/支付包名，只记录，不要杀进程。
+3. 分区：by-name 是否有 `boot`/`boot_a`/`vbmeta`/`seccfg`。需要 dump 时 `adb_pull` 或 `mtk_read`。
+4. 支付进程：`adb_surface` 的包名，或 `adb_shell` `ps -A` 找 POS/支付包名，只记录，不要杀进程。
 5. 来源链：PAX fastboot / Verifone SBI / MTK seccfg / 一次性 LPE。一次性 LPE 重启丢失，必须补持久化。
 
 ## 利用假设生成
@@ -27,13 +29,13 @@ mcps: pos-delivery
 | SBI overlay 持久 | Verifone 链已 overlay | 重启后 H.OUT 仍已认证 |
 | 不做 Magisk | 支付应用强检测且 boot 不可写 | 保持 bootloader 级，明确写「无 Android 根隐藏」 |
 
-不要默认「有 root 就装 Magisk」。先看可行性 JSON。
+不要默认「有 root 就装 Magisk」。先看可行性 JSON。Android 7 商米常用 Magisk 旧分支。
 
 ## 逐步验证
 
 只读：
 
-- dump boot 用 `mtk_read` 或（已 root）`adb_shell` 读分区到可拉文件；禁止未批准的回写。
+- dump boot 用 `mtk_read` 或（已 root）`adb_pull` / `adb_shell` 读分区到可拉文件；禁止未批准的回写。
 - 记录 Magisk 可行性：`magisk_likely`、`need_vbmeta_disable`、`ab_device`、`hide_stack`。
 
 写入 proposed：
@@ -54,6 +56,8 @@ mcps: pos-delivery
 
 **内核 ACE 但未接管**：有一次性根，重启丢失，持久化 proposed 被拒绝或失败。结论写 ACE 成立 + 接管未完成 + 差哪一步。
 
+不要把「能读 TEE 设备节点」写成「已提取支付密钥」。没有独立证据就标 inferred。
+
 输出模板：
 
 ```
@@ -61,6 +65,7 @@ ace: yes|no
 persistent: yes|no
 method: magisk|seccfg|sbi|edl-boot|none
 hide_from_payment: unknown|likely|blocked
+tee_keys: not-in-scope|unverified
 vbmeta: untouched|disable-proposed|disabled
 evidence: [工具与回执]
 ```
