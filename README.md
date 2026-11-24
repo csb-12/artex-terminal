@@ -62,7 +62,7 @@ flowchart LR
 前置：已经在跑的 ARTEX（Docker 或宿主机）、Python 3.10+、宿主机能看到 POS 的 USB（adb / fastboot 在 PATH）。
 
 ```bash
-git clone https://github.com/YOUR_ORG/artex-terminal.git
+git clone https://github.com/csb-12/artex-terminal.git
 cd artex-terminal
 
 python -m pip install -r mcp/pos-delivery/requirements.txt
